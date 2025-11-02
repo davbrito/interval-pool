@@ -182,11 +182,11 @@ describe("IntervalPool", () => {
       const callback = vi.fn();
       const unsubscribe = pool.run(1000, callback);
 
-      expect(pool.getActivePoolCount()).toBe(1);
+      expect(pool.getActiveIntervalCount()).toBe(1);
 
       unsubscribe();
 
-      expect(pool.getActivePoolCount()).toBe(0);
+      expect(pool.getActiveIntervalCount()).toBe(0);
     });
 
     test("should handle multiple unsubscribe calls gracefully", () => {
@@ -196,7 +196,7 @@ describe("IntervalPool", () => {
       unsubscribe();
       unsubscribe(); // Should not throw
 
-      expect(pool.getActivePoolCount()).toBe(0);
+      expect(pool.getActiveIntervalCount()).toBe(0);
     });
   });
 
@@ -258,7 +258,7 @@ describe("IntervalPool", () => {
       await vi.advanceTimersByTimeAsync(1000);
       await iteratePromise;
 
-      expect(pool.getActivePoolCount()).toBe(0);
+      expect(pool.getActiveIntervalCount()).toBe(0);
     });
 
     test("should handle multiple concurrent iterations", async () => {
@@ -297,11 +297,11 @@ describe("IntervalPool", () => {
       pool.run(2000, vi.fn());
       pool.run(3000, vi.fn());
 
-      expect(pool.getActivePoolCount()).toBe(3);
+      expect(pool.getActiveIntervalCount()).toBe(3);
 
       pool.clear();
 
-      expect(pool.getActivePoolCount()).toBe(0);
+      expect(pool.getActiveIntervalCount()).toBe(0);
     });
 
     test("should stop all callbacks after clearing", () => {
@@ -320,20 +320,20 @@ describe("IntervalPool", () => {
     });
   });
 
-  describe("getActivePoolCount", () => {
+  describe("getActiveIntervalCount", () => {
     test("should return 0 when no pools exist", () => {
-      expect(pool.getActivePoolCount()).toBe(0);
+      expect(pool.getActiveIntervalCount()).toBe(0);
     });
 
     test("should return correct count of active pools", () => {
       pool.run(1000, vi.fn());
-      expect(pool.getActivePoolCount()).toBe(1);
+      expect(pool.getActiveIntervalCount()).toBe(1);
 
       pool.run(2000, vi.fn());
-      expect(pool.getActivePoolCount()).toBe(2);
+      expect(pool.getActiveIntervalCount()).toBe(2);
 
       pool.run(1000, vi.fn()); // Same delay, should not increase count
-      expect(pool.getActivePoolCount()).toBe(2);
+      expect(pool.getActiveIntervalCount()).toBe(2);
     });
   });
 
@@ -443,13 +443,13 @@ describe("IntervalPool", () => {
       pool1.run(1000, callback1);
       pool2.run(1000, callback2);
 
-      expect(pool1.getActivePoolCount()).toBe(1);
-      expect(pool2.getActivePoolCount()).toBe(1);
+      expect(pool1.getActiveIntervalCount()).toBe(1);
+      expect(pool2.getActiveIntervalCount()).toBe(1);
 
       pool1.clear();
 
-      expect(pool1.getActivePoolCount()).toBe(0);
-      expect(pool2.getActivePoolCount()).toBe(1);
+      expect(pool1.getActiveIntervalCount()).toBe(0);
+      expect(pool2.getActiveIntervalCount()).toBe(1);
 
       vi.advanceTimersByTime(1000);
 

@@ -215,12 +215,12 @@ export class IntervalPool {
    *   const pool = new IntervalPool();
    *   pool.run(1000, () => {});
    *   pool.run(2000, () => {});
-   *   console.log(pool.getActivePoolCount()); // 2
+   *   console.log(pool.getActiveIntervalCount()); // 2
    *   ```;
    *
    * @returns The number of unique interval durations currently being managed
    */
-  getActivePoolCount(): number {
+  getActiveIntervalCount(): number {
     return this.#buckets.size;
   }
 
