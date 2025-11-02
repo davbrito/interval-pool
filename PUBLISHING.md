@@ -1,0 +1,136 @@
+# Publishing Guide
+
+This document explains how to publish new versions of `interval-pool` to npm.
+
+## Prerequisites
+
+1. **npm Account**: You need an npm account with publish permissions
+2. **npm Token**: Create an npm access token:
+   - Go to https://www.npmjs.com/settings/YOUR_USERNAME/tokens
+   - Click "Generate New Token" → "Classic Token"
+   - Select "Automation" type
+   - Copy the token
+
+3. **GitHub Secret**: Add the npm token to GitHub:
+   - Go to your repository on GitHub
+   - Settings → Secrets and variables → Actions
+   - Click "New repository secret"
+   - Name: `NPM_TOKEN`
+   - Value: Paste your npm token
+   - Click "Add secret"
+
+## Publishing Process
+
+### Automated Publishing (Recommended)
+
+The library uses GitHub Actions for automated publishing when you create a release.
+
+#### Steps:
+
+1. **Update version** using bumpp:
+   ```bash
+   # For patch version (0.0.0 → 0.0.1)
+   pnpm exec bumpp patch
+
+   # For minor version (0.0.0 → 0.1.0)
+   pnpm exec bumpp minor
+
+   # For major version (0.0.0 → 1.0.0)
+   pnpm exec bumpp major
+   ```
+
+2. **Push the tag**:
+   ```bash
+   git push --follow-tags
+   ```
+
+3. **Create a GitHub Release**:
+   - Go to https://github.com/davbrito/interval-pool/releases/new
+   - Select the tag you just pushed
+   - Add release notes describing changes
+   - Click "Publish release"
+
+4. **Automated workflow**:
+   - The GitHub Action will automatically trigger
+   - It will run tests, typecheck, and build
+   - If all checks pass, it publishes to npm
+   - Check the Actions tab to monitor progress
+
+### Manual Publishing
+
+If you need to publish manually:
+
+1. **Ensure you're logged in to npm**:
+   ```bash
+   npm login
+   ```
+
+2. **Update version**:
+   ```bash
+   pnpm exec bumpp
+   ```
+
+3. **Run all checks**:
+   ```bash
+   pnpm test run
+   pnpm typecheck
+   pnpm build
+   ```
+
+4. **Publish**:
+   ```bash
+   pnpm publish --access public
+   ```
+
+## Version Guidelines
+
+Follow [Semantic Versioning](https://semver.org/):
+
+- **MAJOR** (1.0.0): Breaking changes
+- **MINOR** (0.1.0): New features, backward compatible
+- **PATCH** (0.0.1): Bug fixes, backward compatible
+
+## Pre-release Checklist
+
+- [ ] All tests passing (`pnpm test run`)
+- [ ] No TypeScript errors (`pnpm typecheck`)
+- [ ] Build succeeds (`pnpm build`)
+- [ ] README is up to date
+- [ ] CHANGELOG is updated (if you have one)
+- [ ] Version number is correct
+- [ ] All changes are committed
+
+## Workflows
+
+### CI Workflow (`.github/workflows/ci.yml`)
+- Runs on every push to `main` and on all PRs
+- Tests on Node.js 18, 20, and 22
+- Runs tests, typecheck, build, and formatting check
+
+### Publish Workflow (`.github/workflows/publish.yml`)
+- Runs when a GitHub release is created
+- Installs dependencies
+- Runs tests and typecheck
+- Builds the package
+- Publishes to npm with provenance
+
+## Troubleshooting
+
+### "403 Forbidden" error
+- Ensure your npm token has publish permissions
+- Check that the `NPM_TOKEN` secret is correctly set in GitHub
+
+### "Version already exists"
+- You're trying to publish a version that already exists on npm
+- Increment the version number using `bumpp`
+
+### Tests failing in CI
+- Run tests locally first: `pnpm test run`
+- Check the Actions logs for detailed error messages
+
+## Support
+
+If you encounter issues:
+1. Check the [GitHub Actions logs](https://github.com/davbrito/interval-pool/actions)
+2. Open an issue on GitHub
+3. Contact the maintainers
