@@ -163,13 +163,15 @@ export class IntervalPool {
    * @yields Void on each interval tick
    */
   async *iterate(delay: number): AsyncGenerator<void, void, unknown> {
-    let resolve: (() => void) | null = null;
+    let resolve: (() => void) | undefined = undefined;
     let stopped = false;
+    let lostTicks = 0;
 
     const callback = () => {
+      lostTicks++;
       if (resolve) {
         resolve();
-        resolve = null;
+        resolve = undefined;
       }
     };
 
@@ -177,10 +179,16 @@ export class IntervalPool {
 
     try {
       while (!stopped) {
-        await new Promise<void>((res) => {
-          resolve = res;
-        });
-        yield;
+        if (lostTicks === 0) {
+          await new Promise<void>((res) => {
+            resolve = res;
+          });
+        }
+
+        while (lostTicks > 0) {
+          yield;
+          lostTicks--;
+        }
       }
     } finally {
       stopped = true;

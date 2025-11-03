@@ -17,7 +17,7 @@ describe("IntervalPool", () => {
   let pool: IntervalPool;
 
   beforeEach(() => {
-    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    vi.useFakeTimers();
     pool = new IntervalPool(poolOptions);
   });
 
@@ -214,9 +214,7 @@ describe("IntervalPool", () => {
       })();
 
       // Advance timers and run microtasks
-      await vi.advanceTimersByTimeAsync(1000);
-      await vi.advanceTimersByTimeAsync(1000);
-      await vi.advanceTimersByTimeAsync(1000);
+      vi.advanceTimersByTime(3000);
 
       await iteratePromise;
 
@@ -238,9 +236,7 @@ describe("IntervalPool", () => {
 
       expect(pool.getSubscriptionCount(MS)).toBe(1);
 
-      await vi.advanceTimersByTimeAsync(MS);
-      await vi.advanceTimersByTimeAsync(MS);
-      await vi.advanceTimersByTimeAsync(MS);
+      vi.advanceTimersByTime(MS * 3);
 
       await iteratePromise;
 
@@ -255,7 +251,7 @@ describe("IntervalPool", () => {
         }
       })();
 
-      await vi.advanceTimersByTimeAsync(1000);
+      vi.advanceTimersByTime(1000);
       await iteratePromise;
 
       expect(pool.getActiveIntervalCount()).toBe(0);
@@ -281,13 +277,37 @@ describe("IntervalPool", () => {
         }
       })();
 
-      await vi.advanceTimersByTimeAsync(1000);
-      await vi.advanceTimersByTimeAsync(1000);
+      vi.advanceTimersByTime(2000);
 
       await Promise.all([iterate1, iterate2]);
 
       expect(callback1).toHaveBeenCalledTimes(2);
       expect(callback2).toHaveBeenCalledTimes(2);
+    });
+
+    test("should yield missed interval ticks", { timeout: 500 }, async () => {
+      const MS = 1000;
+      const iterator = pool.iterate(MS);
+
+      iterator.next(); // Start the iterator
+
+      // Advance 10 ticks
+      vi.advanceTimersByTime(MS * 10);
+
+      // If the promise hangs here, means we are not yielding missed ticks
+      await Promise.all(
+        Array.from({ length: 9 }, () =>
+          expect(iterator.next()).resolves.toEqual({
+            value: undefined,
+            done: false,
+          }),
+        ),
+      );
+
+      await expect(iterator.return()).resolves.toEqual({
+        value: undefined,
+        done: true,
+      });
     });
   });
 
