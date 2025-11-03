@@ -1,7 +1,7 @@
 {
   "name": "interval-pool",
   "type": "module",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "A simple interval pool library for managing and reusing intervals efficiently in JavaScript/TypeScript.",
   "keywords": [
     "setInterval",
