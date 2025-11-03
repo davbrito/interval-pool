@@ -1,9 +1,9 @@
-name: Create Release
+name: Auto Release Draft
 
 on:
   push:
     tags:
-      - "v*.*.*"
+      - "v*"
 
 jobs:
   release:
@@ -12,34 +12,11 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Generate release notes
-        id: release_notes
-        run: |
-          # Get the previous tag
-          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sed -n '2p')
-
-          if [ -z "$PREVIOUS_TAG" ]; then
-            echo "No previous tag found, using all commits"
-            PREVIOUS_TAG=$(git rev-list --max-parents=0 HEAD)
-          fi
-
-          echo "Generating release notes from $PREVIOUS_TAG to ${{ github.ref_name }}"
-
-          # Generate changelog
-          git log $PREVIOUS_TAG..${{ github.ref_name }} --pretty=format:"- %s (%h)" > CHANGELOG.md
-
-          echo "PREVIOUS_TAG=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
 
       - name: Create Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: ncipollo/release-action@v1
         with:
-          tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}
-          body_path: CHANGELOG.md
-          draft: false
-          prerelease: false
+          immutableCreate: true
+          generateReleaseNotes: true
+          draft: true
+          skipIfReleaseExists: true
