@@ -33,7 +33,7 @@
     "lint:fix": "eslint . --fix",
     "format:check": "prettier --check .",
     "format:fix": "prettier --write .",
-    "bump-version": "bumpp"
+    "release": "bumpp"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
