@@ -21,7 +21,7 @@ yarn add interval-pool
 - **Efficient Interval Management**: Pool and reuse `setInterval` calls to optimize performance
 - **TypeScript Support**: Fully typed for better developer experience
 - **Async Iterator Support**: Modern `for await...of` syntax
-- **Custom Interval Implementation**: Inject custom setInterval/clearInterval for testing
+- **Custom Interval Implementation**: Inject custom setInterval/clearInterval implementations
 - **Lightweight**: Minimal dependencies and small bundle size
 - **Modern ESM**: Built with modern JavaScript modules
 
@@ -134,7 +134,7 @@ import lt from "long-timeout";
 const pool = new IntervalPool({
   interval: {
     set: lt.setInterval,
-    clear: clearInterval,
+    clear: lt.clearInterval,
   },
 });
 
