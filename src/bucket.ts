@@ -13,31 +13,63 @@ export interface IntervalSubscription {
 
 /** Internal structure to manage callbacks for a specific interval duration. */
 export class IntervalBucket {
-  #interval: CustomInterval;
-  #delay: number;
+  #disposed = false;
   #intervalId: unknown;
-  #subscriptions = new Set<IntervalSubscription>();
-  #onStop: () => void;
+  #onEmpty: ((bucket: IntervalBucket) => void) | undefined;
 
-  constructor(interval: CustomInterval, delay: number, onStop: () => void) {
+  readonly delay: number;
+  readonly #interval: CustomInterval;
+  readonly #subscriptions = new Set<IntervalSubscription>();
+
+  constructor(
+    interval: CustomInterval,
+    delay: number,
+    onEmpty: (bucket: IntervalBucket) => void,
+  ) {
     this.#interval = interval;
-    this.#delay = delay;
-    this.#onStop = onStop;
+    this.delay = delay;
+    this.#onEmpty = onEmpty;
   }
 
   add(subscription: IntervalSubscription) {
+    if (this.#disposed) {
+      throw new Error("Cannot add subscription to a disposed bucket");
+    }
+
     this.#subscriptions.add(subscription);
     this.#tryStart();
   }
 
-  delete(subscription: IntervalSubscription) {
+  remove(subscription: IntervalSubscription) {
+    if (this.#disposed) {
+      throw new Error("Cannot remove subscription from a disposed bucket");
+    }
+
     this.#subscriptions.delete(subscription);
-    this.#tryStop();
+
+    if (this.#subscriptions.size === 0) {
+      this.stop();
+      this.#onEmpty?.(this);
+    }
+  }
+
+  stop() {
+    if (this.#disposed) {
+      throw new Error("Cannot stop a disposed bucket");
+    }
+
+    if (this.#intervalId) {
+      this.#interval.clear(this.#intervalId);
+      this.#intervalId = undefined;
+    }
   }
 
   dispose() {
+    if (this.#disposed) return;
     this.#subscriptions.clear();
-    this.#tryStop();
+    this.stop();
+    this.#onEmpty = undefined;
+    this.#disposed = true;
   }
 
   #tryStart() {
@@ -45,33 +77,27 @@ export class IntervalBucket {
 
     this.#intervalId = this.#interval.set(
       this.#handleIntervalTick.bind(this),
-      this.#delay,
+      this.delay,
     );
   }
 
-  #tryStop() {
-    if (this.#subscriptions.size > 0) return;
-    if (!this.#intervalId) return;
-    this.#interval.clear(this.#intervalId);
-    this.#intervalId = undefined;
-    this.#onStop();
+  #notifySubscription(subscription: IntervalSubscription) {
+    const { callback, once } = subscription;
+    try {
+      callback();
+    } catch (error) {
+      // Catch errors to prevent one callback from breaking others
+      console.error("Error in interval callback:", error);
+    } finally {
+      if (once) {
+        this.remove(subscription);
+      }
+    }
   }
 
   #handleIntervalTick() {
     // Execute all callbacks registered for this interval
-    this.#subscriptions.forEach((subscription) => {
-      const { callback, once } = subscription;
-      try {
-        callback();
-      } catch (error) {
-        // Catch errors to prevent one callback from breaking others
-        console.error("Error in interval callback:", error);
-      } finally {
-        if (once) {
-          this.delete(subscription);
-        }
-      }
-    });
+    this.#subscriptions.forEach(this.#notifySubscription, this);
   }
 
   get subscriptionCount(): number {

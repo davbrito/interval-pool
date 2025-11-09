@@ -131,6 +131,17 @@ describe("IntervalPool", () => {
       expect(normalCallback2).toHaveBeenCalledTimes(1);
       expect(consoleErrorSpy).toHaveBeenCalled();
     });
+
+    test("calling unsubscribe after clearing pool should be safe", () => {
+      const callback = vi.fn();
+      const unsubscribe = pool.run(1000, callback);
+
+      pool.clear();
+
+      vi.advanceTimersByTime(5000);
+
+      expect(() => unsubscribe()).not.toThrow();
+    });
   });
 
   describe("once", () => {

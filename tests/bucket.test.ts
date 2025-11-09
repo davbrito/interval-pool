@@ -68,10 +68,24 @@ describe("IntervalBucket", () => {
     expect(vi.getTimerCount()).toBe(1);
     expect(callback).not.toHaveBeenCalled();
 
-    bucket.delete(subscription);
+    bucket.remove(subscription);
 
     expect(vi.getTimerCount()).toBe(0);
     expect(onStopMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("should restart interval when a new subscription is added after all were removed", () => {
+    const callback = vi.fn();
+    const subscription: IntervalSubscription = { callback };
+
+    bucket.add(subscription);
+    expect(vi.getTimerCount()).toBe(1);
+
+    bucket.remove(subscription);
+    expect(vi.getTimerCount()).toBe(0);
+
+    bucket.add(subscription);
+    expect(vi.getTimerCount()).toBe(1);
   });
 
   it("should not stop interval if subscriptions remain", () => {
@@ -80,7 +94,7 @@ describe("IntervalBucket", () => {
 
     bucket.add(subscription1);
     bucket.add(subscription2);
-    bucket.delete(subscription1);
+    bucket.remove(subscription1);
 
     expect(vi.getTimerCount()).toBe(1);
     expect(onStopMock).not.toHaveBeenCalled();
@@ -162,7 +176,26 @@ describe("IntervalBucket", () => {
     bucket.add(sub2);
     expect(bucket.subscriptionCount).toBe(2);
 
-    bucket.delete(sub1);
+    bucket.remove(sub1);
     expect(bucket.subscriptionCount).toBe(1);
+  });
+
+  it("should throw error when adding subscription to disposed bucket", () => {
+    bucket.dispose();
+    const subscription: IntervalSubscription = { callback: vi.fn() };
+
+    expect(() => bucket.add(subscription)).toThrow(
+      "Cannot add subscription to a disposed bucket",
+    );
+  });
+
+  it("should throw error when removing subscription from disposed bucket", () => {
+    const subscription: IntervalSubscription = { callback: vi.fn() };
+    bucket.add(subscription);
+    bucket.dispose();
+
+    expect(() => bucket.remove(subscription)).toThrow(
+      "Cannot remove subscription from a disposed bucket",
+    );
   });
 });
