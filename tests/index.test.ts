@@ -1,29 +1,19 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { IntervalPool, IntervalPoolOptions } from "../src/index";
-
-const poolOptions: IntervalPoolOptions = {
-  // do this to ensure we are always using the mocked timers
-  interval: {
-    get set() {
-      return setInterval;
-    },
-    get clear() {
-      return clearInterval;
-    },
-  },
-};
+import { IntervalPool } from "../src/index";
+import { testPoolOptions } from "./helpers";
 
 describe("IntervalPool", () => {
   let pool: IntervalPool;
 
   beforeEach(() => {
     vi.useFakeTimers();
-    pool = new IntervalPool(poolOptions);
+    pool = new IntervalPool(testPoolOptions);
   });
 
   afterEach(() => {
     pool.clear();
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   describe("run", () => {
@@ -140,6 +130,100 @@ describe("IntervalPool", () => {
       expect(normalCallback1).toHaveBeenCalledTimes(1);
       expect(normalCallback2).toHaveBeenCalledTimes(1);
       expect(consoleErrorSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("once", () => {
+    test("should execute callback only once on next tick", () => {
+      const cb = vi.fn();
+      pool.once(1000, cb);
+
+      expect(cb).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(1000);
+      expect(cb).toHaveBeenCalledTimes(1);
+
+      // Ensure it does not run again
+      vi.advanceTimersByTime(2000);
+      expect(cb).toHaveBeenCalledTimes(1);
+    });
+
+    test("should not execute when unsubscribed before first tick", () => {
+      const cb = vi.fn();
+      const unsubscribe = pool.once(1000, cb);
+
+      unsubscribe();
+
+      vi.advanceTimersByTime(1000);
+      expect(cb).not.toHaveBeenCalled();
+    });
+
+    test("should allow multiple once callbacks even with same reference", () => {
+      const fn = vi.fn();
+      const callback = () => fn("called");
+
+      pool.once(1000, callback);
+      pool.once(1000, callback);
+      pool.once(1000, callback);
+
+      vi.advanceTimersByTime(1000);
+      expect(fn).toHaveBeenCalledTimes(3);
+    });
+
+    test("should not affect regular interval callbacks", () => {
+      const onceCb = vi.fn();
+      const regularCb = vi.fn();
+
+      pool.once(1000, onceCb);
+      pool.run(1000, regularCb);
+
+      vi.advanceTimersByTime(1000);
+      expect(onceCb).toHaveBeenCalledTimes(1);
+      expect(regularCb).toHaveBeenCalledTimes(1);
+
+      // Regular callback continues, once callback does not
+      vi.advanceTimersByTime(1000);
+      expect(onceCb).toHaveBeenCalledTimes(1);
+      expect(regularCb).toHaveBeenCalledTimes(2);
+    });
+
+    test("should stop after first tick even if callback throws", () => {
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
+      const errorCb = vi.fn(() => {
+        throw new Error("Test error");
+      });
+
+      pool.once(1000, errorCb);
+
+      vi.advanceTimersByTime(1000);
+      expect(errorCb).toHaveBeenCalledTimes(1);
+      expect(consoleErrorSpy).toHaveBeenCalled();
+
+      // Ensure it does not run again
+      vi.advanceTimersByTime(2000);
+      expect(errorCb).toHaveBeenCalledTimes(1);
+    });
+
+    test("ensure subscription is removed even if callback throws", () => {
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const errorCb = vi.fn(() => {
+        throw new Error("Test error");
+      });
+
+      pool.once(1000, errorCb);
+
+      expect(pool.getSubscriptionCount(1000)).toBe(1);
+
+      vi.advanceTimersByTime(1000);
+      expect(errorCb).toHaveBeenCalledTimes(1);
+      expect(consoleErrorSpy).toHaveBeenCalled();
+
+      expect(pool.getSubscriptionCount(1000)).toBe(0);
     });
   });
 
@@ -454,8 +538,8 @@ describe("IntervalPool", () => {
 
   describe("multiple pool instances", () => {
     test("should manage intervals independently between instances", () => {
-      const pool1 = new IntervalPool(poolOptions);
-      const pool2 = new IntervalPool(poolOptions);
+      const pool1 = new IntervalPool(testPoolOptions);
+      const pool2 = new IntervalPool(testPoolOptions);
 
       const callback1 = vi.fn();
       const callback2 = vi.fn();

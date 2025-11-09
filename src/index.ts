@@ -1,19 +1,11 @@
-/** Represents a callback function that will be executed at regular intervals. */
-export type IntervalCallback = () => void;
+import {
+  IntervalBucket,
+  type IntervalCallback,
+  type IntervalSubscription,
+  type UnsubscribeFunction,
+} from "./bucket";
 
-/** Represents an unsubscribe function that stops the execution of a callback. */
-export type UnsubscribeFunction = () => void;
-
-interface IntervalSubscription {
-  callback: IntervalCallback;
-  once?: boolean;
-}
-
-/** Internal structure to manage callbacks for a specific interval duration. */
-interface IntervalBucket {
-  intervalId: unknown;
-  subscriptions: Set<IntervalSubscription>;
-}
+export type { IntervalCallback, UnsubscribeFunction };
 
 /** For custom interval */
 export interface CustomInterval<TId = any> {
@@ -106,41 +98,19 @@ export class IntervalPool {
 
     // Create a new bucket if one doesn't exist for this delay
     if (!bucket) {
-      const subscriptions = new Set<IntervalSubscription>();
-      const intervalId = this.#interval.set(() => {
-        // Execute all callbacks registered for this interval
-        subscriptions.forEach((subscription) => {
-          try {
-            const { callback, once } = subscription;
-            callback();
-
-            if (once) {
-              this.#removeSubscription(delay, subscription);
-            }
-          } catch (error) {
-            // Catch errors to prevent one callback from breaking others
-            console.error("Error in interval callback:", error);
-          }
-        });
-      }, delay);
-
-      bucket = { intervalId, subscriptions };
+      bucket = new IntervalBucket(this.#interval, delay, () =>
+        this.#buckets.delete(delay),
+      );
       this.#buckets.set(delay, bucket);
     }
 
-    bucket.subscriptions.add(subscription);
+    bucket.add(subscription);
   }
 
   #removeSubscription(delay: number, subscription: IntervalSubscription) {
     const bucket = this.#buckets.get(delay);
     if (!bucket) return;
-
-    bucket.subscriptions.delete(subscription);
-
-    if (bucket.subscriptions.size === 0) {
-      this.#interval.clear(bucket.intervalId);
-      this.#buckets.delete(delay);
-    }
+    bucket.delete(subscription);
   }
 
   /**
@@ -208,10 +178,7 @@ export class IntervalPool {
    *   ```;
    */
   clear(): void {
-    this.#buckets.forEach((bucket) => {
-      this.#interval.clear(bucket.intervalId);
-      bucket.subscriptions.clear();
-    });
+    this.#buckets.forEach((bucket) => bucket.dispose());
     this.#buckets.clear();
   }
 
@@ -249,7 +216,7 @@ export class IntervalPool {
    */
   getSubscriptionCount(delay: number): number {
     const pool = this.#buckets.get(delay);
-    return pool ? pool.subscriptions.size : 0;
+    return pool ? pool.subscriptionCount : 0;
   }
 
   /**
@@ -272,9 +239,9 @@ export class IntervalPool {
    *   pool
    */
   getStats(): Array<{ delay: number; subscriptionCount: number }> {
-    return Array.from(this.#buckets.entries()).map(([delay, pool]) => ({
+    return Array.from(this.#buckets.entries()).map(([delay, bucket]) => ({
       delay,
-      subscriptionCount: pool.subscriptions.size,
+      subscriptionCount: bucket.subscriptionCount,
     }));
   }
 }
